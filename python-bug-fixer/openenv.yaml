@@ -1,0 +1,52 @@
+name: python-bug-fixer
+version: 1.0.0
+description: >
+  An RL environment where an AI agent receives broken Python code
+  and must return the corrected version. Three difficulty levels:
+  single arithmetic bug (easy), multiple logic bugs (medium),
+  and subtle algorithmic bugs (hard).
+author: your-hf-username
+
+tasks:
+  - id: easy
+    difficulty: easy
+  - id: medium
+    difficulty: medium
+  - id: hard
+    difficulty: hard
+
+action:
+  type: BugFixAction
+  fields:
+    - name: fixed_code
+      type: str
+    - name: explanation
+      type: str
+
+observation:
+  type: BugFixObservation
+  fields:
+    - name: buggy_code
+      type: str
+    - name: error_description
+      type: str
+    - name: function_signature
+      type: str
+    - name: task_id
+      type: str
+    - name: step
+      type: int
+    - name: reward
+      type: float
+    - name: done
+      type: bool
+    - name: feedback
+      type: str
+
+endpoints:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  tasks: GET /tasks
+  grader: POST /grader
+  baseline: POST /baseline
