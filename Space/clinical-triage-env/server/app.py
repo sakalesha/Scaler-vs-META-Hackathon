@@ -6,12 +6,18 @@ Endpoints:
   GET  /state  → Get the full internal state
 """
 
+import sys
 import os
 import json
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+
+# Ensure the root directory is in sys.path
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.append(BASE_DIR)
 
 from models import (
     Action, Observation, StepResponse, ResetResponse, 
@@ -31,8 +37,8 @@ app = FastAPI(
 # In-memory session store
 _state: Optional[EnvironmentState] = None
 
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 
@@ -40,7 +46,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 def root():
     """Serves the interactive dashboard."""
     try:
-        with open("static/index.html", "r", encoding="utf-8") as f:
+        with open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
         return HTMLResponse("<h1>ClinicalTriageEnv-v1</h1><p>Static files not found.</p>", status_code=404)

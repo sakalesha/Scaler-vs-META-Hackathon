@@ -23,5 +23,8 @@ dependencies = [
     "aiofiles",
 ]
 
+[project.scripts]
+openenv-server = "server.app:app"
+
 [project.urls]
 "Homepage" = "https://huggingface.co/spaces/sakaleshronad/clinical-triage-env"
