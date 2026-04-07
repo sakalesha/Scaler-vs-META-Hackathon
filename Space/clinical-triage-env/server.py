@@ -9,7 +9,7 @@ Endpoints:
 import os
 import json
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -48,13 +48,34 @@ def root():
 # ── OpenEnv Standard Endpoints ───────────────────────────────────────────────
 
 @app.post("/reset", response_model=ResetResponse)
-def reset(task_id: str, seed: Optional[int] = None):
+async def reset(
+    request: Request,
+    task_id: Optional[str] = None, 
+    seed: Optional[int] = None
+):
     global _state
+    # Debug: Log the incoming request to help diagnose validator issues
+    body = await request.body()
+    print(f"DEBUG: /reset called with Query: {request.query_params}, Body: {body.decode()}")
+
+    # Determine task_id from Query, or Body, or Default
+    actual_task_id = task_id
+    if not actual_task_id and body:
+        try:
+            data = json.loads(body)
+            actual_task_id = data.get("task_id")
+        except:
+            pass
+    
+    if not actual_task_id:
+        actual_task_id = "triage-basics"
+
     try:
-        _state = create_initial_state(task_id, seed=seed)
-        obs = build_observation(_state, "Episode reset. Welcome to the ED.")
+        _state = create_initial_state(actual_task_id, seed=seed)
+        obs = build_observation(_state, f"Episode reset ({actual_task_id}). Welcome to the ED.")
         return ResetResponse(observation=obs)
     except Exception as e:
+        print(f"ERROR in /reset: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/step", response_model=StepResponse)
