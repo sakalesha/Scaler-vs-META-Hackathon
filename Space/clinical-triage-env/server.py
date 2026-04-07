@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from models import (
     Action, Observation, StepResponse, ResetResponse, 
-    EnvironmentState, TaskDescription
+    EnvironmentState, TaskDescription, ResetRequest
 )
 from environment import (
     create_initial_state, get_task_description, build_observation,
@@ -48,13 +48,10 @@ def root():
 # ── OpenEnv Standard Endpoints ───────────────────────────────────────────────
 
 @app.post("/reset", response_model=ResetResponse)
-def reset(
-    task_id: str = Body(..., embed=True),
-    seed: Optional[int] = Body(None, embed=True)
-):
+def reset(request: ResetRequest):
     global _state
     try:
-        _state = create_initial_state(task_id, seed=seed)
+        _state = create_initial_state(request.task_id, seed=request.seed)
         obs = build_observation(_state, "Episode reset. Welcome to the ED.")
         return ResetResponse(observation=obs)
     except Exception as e:

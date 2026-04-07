@@ -152,3 +152,7 @@ class BaselineRequest(BaseModel):
 class BaselineResponse(BaseModel):
     action: Action
     reasoning: str
+
+class ResetRequest(BaseModel):
+    task_id: str
+    seed: Optional[int] = None
