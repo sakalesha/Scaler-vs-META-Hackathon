@@ -106,6 +106,7 @@ class TaskDescription(BaseModel):
     description: str
     action_schema: dict
     observation_schema: dict
+    grader: str = "grader.py"
     max_steps: int = 50
 
 

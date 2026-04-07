@@ -92,7 +92,7 @@ def list_tasks():
 
 # ── /grader ───────────────────────────────────────────────────────────────────
 
-@app.post("/grader", response_model=GraderResponse)
+@app.post("/grade", response_model=GraderResponse)
 def grader_endpoint(request: GraderRequest):
     try:
         result = grade(request.model_dump())

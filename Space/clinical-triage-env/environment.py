@@ -311,5 +311,6 @@ def get_task_description(task_id: str) -> TaskDescription:
         description=descriptions.get(task_id, "Standard clinical triage task."),
         action_schema=Action.model_json_schema(),
         observation_schema=Observation.model_json_schema(),
+        grader="grader.py",
         max_steps=50
     )
