@@ -55,7 +55,7 @@ class TriageEnvClient:
         self.base_url = base_url
 
     async def reset(self, task_id: str, seed: int = 42):
-        resp = requests.post(f"{self.base_url}/reset", params={"task_id": task_id, "seed": seed})
+        resp = requests.post(f"{self.base_url}/reset", json={"task_id": task_id, "seed": seed})
         resp.raise_for_status()
         return resp.json()
 

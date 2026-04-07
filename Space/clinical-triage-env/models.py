@@ -1,19 +1,6 @@
-# This file defines the data models for the clinical triage environment.
-# It includes:
-# - Enumerations for ESI levels and action types
-# - Patient state model
-# - Environment state model
-# - Action model
-# - Observation model
-# - Task description model
-# - Grader request and response models
-# - Baseline request and response models   
-
-
 from pydantic import BaseModel, Field
 from typing import Optional, List, Literal
 from enum import IntEnum
-
 
 # ── Enumerations ──────────────────────────────────────────────────────────────
 
@@ -60,7 +47,7 @@ class PatientState(BaseModel):
     true_esi: Optional[int]           = Field(None, exclude=True)
     assigned_esi: Optional[int]       = None
     is_dispositioned: bool            = False
-
+    
     # Tracking for UI alerts
     source: str                       = "synthetic"
     has_deteriorated: bool            = False
@@ -134,11 +121,13 @@ class GraderResponse(BaseModel):
     done: bool
     next_state: EnvironmentState
 
+
 class StepResponse(BaseModel):
     observation: Observation
     reward: float
     done: bool
     info: dict = {}
+
 
 class ResetResponse(BaseModel):
     observation: Observation
@@ -152,6 +141,7 @@ class BaselineRequest(BaseModel):
 class BaselineResponse(BaseModel):
     action: Action
     reasoning: str
+
 
 class ResetRequest(BaseModel):
     task_id: str

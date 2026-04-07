@@ -1,15 +1,3 @@
-# What is the purpose of this file in this project?
-# This file defines the environment for the clinical triage environment.
-# It includes:
-# - The environment state
-# - The action space
-# - The observation space
-# - The reward function
-# - The reset function
-# - The step function
-# - The render function
-# - The close function  
-
 import random
 import uuid
 import json
@@ -35,11 +23,11 @@ COMPLAINTS = {
 }
 
 VITALS_RANGES = {
-    1: dict(hr=(110, 160), sbp=(60, 89),  spo2=(0.80, 0.89), rr=(25, 35), temp=(38.5, 40.5)),
+    1: dict(hr=(110, 160), sbp=(60,  89),  spo2=(0.80, 0.89), rr=(25, 35), temp=(38.5, 40.5)),
     2: dict(hr=(100, 130), sbp=(85, 100), spo2=(0.88, 0.93), rr=(20, 28), temp=(38.0, 39.5)),
-    3: dict(hr=(88,  110), sbp=(100,125), spo2=(0.93, 0.97), rr=(16, 22), temp=(37.0, 38.5)),
-    4: dict(hr=(70,  95),  sbp=(115,135), spo2=(0.96, 0.99), rr=(14, 18), temp=(36.5, 37.5)),
-    5: dict(hr=(60,  85),  sbp=(115,130), spo2=(0.97, 1.00), rr=(12, 16), temp=(36.0, 37.2)),
+    3: dict(hr=(88,  110), sbp=(100, 125), spo2=(0.93, 0.97), rr=(16, 22), temp=(37.0, 38.5)),
+    4: dict(hr=(70,  95),  sbp=(115, 135), spo2=(0.96, 0.99), rr=(14, 18), temp=(36.5, 37.5)),
+    5: dict(hr=(60,  85),  sbp=(115, 130), spo2=(0.97, 1.00), rr=(12, 16), temp=(36.0, 37.2)),
 }
 
 LAB_RESULTS = {
@@ -64,6 +52,7 @@ IMAGING_RESULTS = {
     5: ["No acute findings.", "Normal study."],
 }
 
+
 # ── Environment Support ──────────────────────────────────────────────────────
 
 def _sample_patient(esi: int) -> PatientState:
@@ -76,8 +65,7 @@ def _sample_patient(esi: int) -> PatientState:
         true_esi=esi,
     )
 
-# This function is used to sample vitals for a patient based on their ESI level.
-# It is used to generate realistic vital signs for the patients in the environment.         
+
 def _sample_vitals(patient: PatientState) -> PatientState:
     esi = patient.true_esi or 3
     v = VITALS_RANGES[esi]
@@ -89,9 +77,9 @@ def _sample_vitals(patient: PatientState) -> PatientState:
     patient.has_deteriorated  = False
     return patient
 
+
 # ── Core API ──────────────────────────────────────────────────────────────────
 
-# It is used to generate the initial state of the environment.
 def create_initial_state(task_id: str, seed: Optional[int] = None) -> EnvironmentState:
     if seed is not None:
         random.seed(seed)
@@ -132,12 +120,10 @@ def create_initial_state(task_id: str, seed: Optional[int] = None) -> Environmen
         # Fallback
         return create_initial_state("standard-shift", seed)
 
-# It is used to apply an action to the environment. 
-# It returns the next state, reward, done, and info.  
+
 def apply_action(state: EnvironmentState, action: Action) -> Tuple[EnvironmentState, float, bool, Dict[str, Any]]:
     """
     Core transition function. Returns (next_state, reward, done, info).
-    Integrates grading logic for the reward signal.
     """
     patient = next((p for p in state.patients if p.patient_id == action.patient_id), None)
     
@@ -152,7 +138,7 @@ def apply_action(state: EnvironmentState, action: Action) -> Tuple[EnvironmentSt
         state, action_feedback = _execute_action_logic(state, action, patient)
         feedback += f" | {action_feedback}"
 
-    # Deterioration (higher probability in hard mode)
+    # Deterioration
     det_rate = 0.05 if state.task_id == "crisis-surge" else 0.02
     det_msg = _process_deterioration(state, det_rate)
     if det_msg:
@@ -162,7 +148,7 @@ def apply_action(state: EnvironmentState, action: Action) -> Tuple[EnvironmentSt
     state.sim_clock_minutes += 5
     state.step_count += 1
 
-    # Arrivals (more frequent in standard/surge)
+    # Arrivals
     if state.task_id != "triage-basics":
         arrival_freq = 4 if state.task_id == "crisis-surge" else 6
         if state.step_count % arrival_freq == 0 and len(state.patients) < 15:
@@ -181,7 +167,7 @@ def apply_action(state: EnvironmentState, action: Action) -> Tuple[EnvironmentSt
     info = {"feedback": feedback}
     return state, reward, done, info
 
-# It is used to execute the action logic.
+
 def _execute_action_logic(state: EnvironmentState, action: Action, patient: PatientState) -> Tuple[EnvironmentState, str]:
     atype = action.action_type
     feedback = ""
@@ -235,9 +221,9 @@ def _execute_action_logic(state: EnvironmentState, action: Action, patient: Pati
 
     return state, feedback
 
-# It is used to calculate the reward for an action. 
+
 def _calculate_reward(state: EnvironmentState, action: Action, patient: PatientState) -> Tuple[float, str]:
-    """Integrated Reward Shaping logic."""
+    """Reward logic for reinforcement learning."""
     score = 0.1
     rationale = ""
     atype = action.action_type
@@ -285,8 +271,7 @@ def _calculate_reward(state: EnvironmentState, action: Action, patient: PatientS
 
     return round(score, 3), rationale
 
-# It is used to process the deterioration of patients.
-# deterioration: It is used to process the deterioration of patients.     
+
 def _process_deterioration(state: EnvironmentState, rate: float) -> str:
     alerts = []
     for p in state.patients:
@@ -299,7 +284,7 @@ def _process_deterioration(state: EnvironmentState, rate: float) -> str:
             alerts.append(f"Patient {p.patient_id} crashed!")
     return " ".join(alerts)
 
-# It is used to build the observation for the agent.    
+
 def build_observation(state: EnvironmentState, feedback: str = "") -> Observation:
     return Observation(
         task_id=state.task_id,
@@ -314,17 +299,17 @@ def build_observation(state: EnvironmentState, feedback: str = "") -> Observatio
         last_action_feedback=feedback,
     )
 
-# It is used to get the task description based on the task_id.
+
 def get_task_description(task_id: str) -> TaskDescription:
-    # This should return the description based on the task_id
-    tasks = {
+    descriptions = {
         "triage-basics": "Easy: Triage 3 patients. Minimal constraints.",
         "standard-shift": "Medium: 6-hour shift. Stochastic arrivals. Resource management.",
         "crisis-surge": "Hard: High pressure. Rapid deterioration. Resource scarcity."
     }
     return TaskDescription(
         task_id=task_id,
-        description=tasks.get(task_id, "Standard clinical triage task."),
+        description=descriptions.get(task_id, "Standard clinical triage task."),
         action_schema=Action.model_json_schema(),
-        observation_schema=Observation.model_json_schema()
+        observation_schema=Observation.model_json_schema(),
+        max_steps=50
     )

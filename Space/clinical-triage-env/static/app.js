@@ -1,4 +1,4 @@
-/* app.js — ClinicalTriageEnv-v0 Dashboard */
+/* app.js — ClinicalTriageEnv Dashboard */
 
 'use strict';
 
@@ -13,7 +13,7 @@ const STATE = {
   stepScores:     [],       // history for sparkline
   totalScore:     0,
   stepCount:      0,
-  taskId:         'clinical-triage-v0',
+  taskId:         'triage-basics', // Default task
 };
 
 const MAX_LOG   = 80;
@@ -57,7 +57,6 @@ const ui = {
   labBar:$('labBar'), labNum:$('labNum'),
   imgBar:$('imgBar'), imgNum:$('imgNum'),
   tokBar:$('tokBar'), tokNum:$('tokNum'),
-  bedNum2:$('bedNum'), labNum2:$('labNum'),
 };
 
 // ── Init ─────────────────────────────────────────────────────────────────────
@@ -137,13 +136,19 @@ async function startEpisode() {
   const seed = parseInt(ui.seedInput.value) || 42;
 
   try {
-    const res  = await fetch(`/tasks/${STATE.taskId}/start?seed=${seed}`, { method: 'POST' });
+    // OpenEnv V1 uses /reset
+    const res  = await fetch(`/reset`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id: STATE.taskId, seed: seed })
+    });
     const data = await res.json();
+    const obs = data.observation;
 
-    STATE.obs = data;
-    renderObs(data);
+    STATE.obs = obs;
+    renderObs(obs);
     ui.episodeLog.innerHTML = '';
-    appendLog(0, '—', 'Episode started', null, `${data.patients.length} patients in queue. Seed: ${seed}`);
+    appendLog(0, '—', 'Episode started', null, `${obs.patients.length} patients in queue. Seed: ${seed}`);
     ui.startBtn.disabled = false;
     ui.stopBtn.disabled  = false;
 
@@ -181,8 +186,8 @@ async function runAIStep() {
     });
     const baseData = await baseRes.json();
 
-    // 2. Grade it
-    await gradeAction(baseData.action, baseData.reasoning);
+    // 2. Submit to /step (OpenEnv standard)
+    await submitAction(baseData.action);
 
     if (!STATE.obs.episode_done && STATE.running) scheduleAIStep();
     else stopAI();
@@ -190,12 +195,6 @@ async function runAIStep() {
     appendLog(STATE.stepCount, '—', 'AI error: ' + e.message, null, '');
     stopAI();
   }
-}
-
-function stopAI() {
-  STATE.running = false;
-  clearTimeout(STATE.aiTimer);
-  ui.stopBtn.disabled = true;
 }
 
 // ── Manual action ─────────────────────────────────────────────────────────────
@@ -211,46 +210,40 @@ async function submitManualAction(actionType, esiLevel) {
 
   // Disable buttons during request
   setActionButtonsEnabled(false);
-  await gradeAction(action, null);
+  await submitAction(action);
   setActionButtonsEnabled(true);
 }
 
-// ── Core: grade action ────────────────────────────────────────────────────────
+// ── Core: submit action ────────────────────────────────────────────────────────
 
-async function gradeAction(action, reasoning) {
+async function submitAction(action) {
   if (!STATE.obs) return;
 
-  const payload = {
-    task_id: STATE.taskId,
-    action,
-    state: obsToState(STATE.obs),
-  };
-
   try {
-    const res  = await fetch('/grader', {
+    // OpenEnv V1 uses /step
+    const res  = await fetch('/step', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(action),
     });
     const data = await res.json();
+    const obs = data.observation;
 
     STATE.stepCount++;
-    STATE.totalScore += data.score;
-    STATE.stepScores.push(data.score);
+    STATE.totalScore += data.reward;
+    STATE.stepScores.push(data.reward);
     if (STATE.stepScores.length > MAX_CHART) STATE.stepScores.shift();
 
-    // Build next obs from grader response
-    const ns  = data.next_state;
-    STATE.obs = buildObsFromState(ns, data.rationale);
+    STATE.obs = obs;
 
     // Update UI
-    renderObs(STATE.obs);
-    showLastScore(data.score, data.rationale);
+    renderObs(obs);
+    showLastScore(data.reward, obs.last_action_feedback);
     updateScoreDisplay();
     drawChart();
 
     const actionLabel = `${action.action_type}${action.esi_level ? ' ESI-' + action.esi_level : ''} → ${action.patient_id}`;
-    appendLog(STATE.stepCount, action.patient_id, actionLabel, data.score, data.rationale);
+    appendLog(STATE.stepCount, action.patient_id, actionLabel, data.reward, obs.last_action_feedback);
 
     if (data.done) {
       appendLog(STATE.stepCount, '—', '🏁 Episode complete', null,
@@ -258,7 +251,7 @@ async function gradeAction(action, reasoning) {
       ui.stopBtn.disabled = true;
     }
   } catch (e) {
-    appendLog(STATE.stepCount, '—', 'Grader error: ' + e.message, null, '');
+    appendLog(STATE.stepCount, '—', 'Action error: ' + e.message, null, '');
   }
 }
 
@@ -278,11 +271,11 @@ function renderObs(obs) {
   const active = obs.patients.filter(p => !p.is_dispositioned).length;
   ui.queueMeta.textContent = `${active} active / ${obs.patients.length} total`;
 
-  // Resources
+  // Resources (hardcoded max values for now)
   updateResourceBar(ui.bedBar, ui.bedNum, obs.beds_available, 12);
   updateResourceBar(ui.labBar, ui.labNum, obs.lab_slots_available, 8);
   updateResourceBar(ui.imgBar, ui.imgNum, obs.imaging_slots_available, 4);
-  updateResourceBar(ui.tokBar, ui.tokNum, obs.action_tokens_remaining, 10);
+  updateResourceBar(ui.tokBar, ui.tokNum, obs.action_tokens_remaining, 30);
 
   // Patient grid
   renderPatientGrid(obs.patients);
@@ -317,7 +310,7 @@ function buildPatientCard(p) {
   const badgeClass = esi ? `esi-badge esi-${esi}` : 'esi-badge unknown';
   const badgeText  = esi ? esi : '?';
 
-  // FHIR Source Badge
+  // Source Badge
   const sourceHtml = p.source === 'fhir' ? '<span class="source-badge fhir">FHIR</span>' : '';
 
   let vitalsHtml = '';
@@ -488,7 +481,6 @@ function drawChart() {
 // ── Episode log ───────────────────────────────────────────────────────────────
 
 function appendLog(step, pid, action, score, rationale) {
-  // Remove empty placeholder
   const empty = ui.episodeLog.querySelector('.log-empty');
   if (empty) empty.remove();
 
@@ -508,7 +500,6 @@ function appendLog(step, pid, action, score, rationale) {
 
   ui.episodeLog.prepend(entry);
 
-  // Cap log length
   const entries = ui.episodeLog.querySelectorAll('.log-entry');
   if (entries.length > MAX_LOG) entries[entries.length - 1].remove();
 }
@@ -517,11 +508,10 @@ function appendLog(step, pid, action, score, rationale) {
 
 async function checkDiagnostics() {
   try {
-    const res  = await fetch('/diagnostics');
+    const res  = await fetch('/health');
     const data = await res.json();
-
     ui.diagPill.className = 'diag-pill ' + (data.status === 'ok' ? 'ok' : 'degraded');
-    ui.diagLabel.textContent = data.llm_reachable ? 'LLM ONLINE' : 'FALLBACK';
+    ui.diagLabel.textContent = 'SYSTEM ONLINE';
   } catch {
     ui.diagPill.className    = 'diag-pill error';
     ui.diagLabel.textContent = 'OFFLINE';
@@ -532,42 +522,10 @@ async function openDiagnostics() {
   ui.diagModal.style.display = 'flex';
   ui.diagContent.textContent = 'Loading…';
   try {
-    const res  = await fetch('/diagnostics');
+    const res  = await fetch('/health');
     const data = await res.json();
     ui.diagContent.textContent = JSON.stringify(data, null, 2);
   } catch (e) {
     ui.diagContent.textContent = 'Error: ' + e.message;
   }
-}
-
-// ── Helpers: state conversion ─────────────────────────────────────────────────
-
-function obsToState(obs) {
-  return {
-    task_id:                 obs.task_id,
-    sim_clock_minutes:       obs.sim_clock_minutes,
-    max_shift_minutes:       360.0,
-    action_tokens_remaining: obs.action_tokens_remaining,
-    beds_available:          obs.beds_available,
-    lab_slots_available:     obs.lab_slots_available,
-    imaging_slots_available: obs.imaging_slots_available,
-    patients:                obs.patients,
-    step_count:              obs.step_count,
-    episode_done:            obs.episode_done,
-  };
-}
-
-function buildObsFromState(ns, feedback) {
-  return {
-    task_id:                 ns.task_id,
-    sim_clock_minutes:       ns.sim_clock_minutes,
-    action_tokens_remaining: ns.action_tokens_remaining,
-    beds_available:          ns.beds_available,
-    lab_slots_available:     ns.lab_slots_available,
-    imaging_slots_available: ns.imaging_slots_available,
-    step_count:              ns.step_count,
-    episode_done:            ns.episode_done,
-    patients:                ns.patients,
-    last_action_feedback:    feedback,
-  };
 }

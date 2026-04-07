@@ -344,6 +344,7 @@ canvas { display: block; }
 }
 .patient-card:hover { background: var(--bg-card-h); border-color: var(--border-hi); }
 .patient-card.selected { border-color: var(--teal); background: var(--bg-card-h); }
+
 .patient-card.selected::after {
   content: 'SELECTED';
   position: absolute; top: 6px; right: 8px;

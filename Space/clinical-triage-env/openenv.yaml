@@ -10,13 +10,16 @@ tasks:
     difficulty: easy
     description: "Triage 3 incoming patients with clear symptoms. Focus on observing vitals before assigning ESI."
     max_steps: 20
+    grader: grader.py
     
   - id: standard-shift
     difficulty: medium
     description: "Manage a 6-hour ED shift with 8+ patients. Handle stochastic arrivals and limited bed capacity."
     max_steps: 40
+    grader: grader.py
     
   - id: crisis-surge
     difficulty: hard
     description: "High-pressure surge. 15 patients arrive, many unstable. Patients deteriorate faster if not triaged."
     max_steps: 50
+    grader: grader.py
