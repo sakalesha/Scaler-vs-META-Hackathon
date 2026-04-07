@@ -29,7 +29,6 @@ app = FastAPI(
 )
 
 # In-memory session store
-# In a production OpenEnv, this might handle multiple concurrent users
 _state: Optional[EnvironmentState] = None
 
 
