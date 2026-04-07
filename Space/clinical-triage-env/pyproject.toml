@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clinical-triage-env"
+version = "1.1.0"
+description = "A real-world clinical triage simulation for RL agents compliant with OpenEnv."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "requests",
+    "openai",
+    "openenv-core",
+    "aiofiles",
+]
+
+[project.urls]
+"Homepage" = "https://huggingface.co/spaces/sakaleshronad/clinical-triage-env"
