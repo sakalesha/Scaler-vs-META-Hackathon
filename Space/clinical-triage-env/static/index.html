@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClinicalTriageEnv-v0 | ED Simulation</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ── Top bar ──────────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="env-tag">ClinicalTriageEnv-v0</span>
+      <span class="env-sub">Meta PyTorch OpenEnv Hackathon</span>
+    </div>
+    <div class="topbar-center">
+      <div class="sim-clock">
+        <span class="clock-label">SIM TIME</span>
+        <span class="clock-value" id="simClock">00:00</span>
+      </div>
+      <div class="episode-step">
+        <span class="clock-label">STEP</span>
+        <span class="clock-value" id="stepCount">0</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="diag-pill" id="diagPill" title="Click for diagnostics">
+        <span class="diag-dot"></span>
+        <span class="diag-label" id="diagLabel">Checking…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main layout ──────────────────────────────────────────────────── -->
+  <main class="layout">
+
+    <!-- LEFT: Controls -->
+    <aside class="panel panel-controls">
+      <h2 class="panel-title">CONTROLS</h2>
+
+      <div class="control-group">
+        <label class="ctrl-label">Episode Seed</label>
+        <div class="seed-row">
+          <input class="ctrl-input" type="number" id="seedInput" value="42" min="0" max="9999" />
+          <button class="btn btn-ghost" id="randomSeed" title="Random seed">⟳</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label class="ctrl-label">Mode</label>
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="modeManual" data-mode="manual">MANUAL</button>
+          <button class="mode-btn" id="modeAI" data-mode="ai">AI AGENT</button>
+        </div>
+      </div>
+
+      <div class="control-group" id="speedGroup">
+        <label class="ctrl-label">AI Speed — <span id="speedLabel">1.0s</span></label>
+        <input class="ctrl-range" type="range" id="speedSlider" min="200" max="3000" step="100" value="1000" />
+      </div>
+
+      <button class="btn btn-primary" id="startBtn">▶ START EPISODE</button>
+      <button class="btn btn-danger" id="stopBtn" disabled>■ STOP</button>
+
+      <!-- Resource meters -->
+      <div class="resource-section">
+        <h3 class="section-label">RESOURCES</h3>
+        <div class="resource-row">
+          <span>Beds</span>
+          <div class="res-bar-wrap"><div class="res-bar" id="bedBar"></div></div>
+          <span class="res-num" id="bedNum">12/12</span>
+        </div>
+        <div class="resource-row">
+          <span>Labs</span>
+          <div class="res-bar-wrap"><div class="res-bar res-bar--lab" id="labBar"></div></div>
+          <span class="res-num" id="labNum">8/8</span>
+        </div>
+        <div class="resource-row">
+          <span>Imaging</span>
+          <div class="res-bar-wrap"><div class="res-bar res-bar--img" id="imgBar"></div></div>
+          <span class="res-num" id="imgNum">4/4</span>
+        </div>
+        <div class="resource-row">
+          <span>Tokens</span>
+          <div class="res-bar-wrap"><div class="res-bar res-bar--tok" id="tokBar"></div></div>
+          <span class="res-num" id="tokNum">10/10</span>
+        </div>
+      </div>
+
+      <!-- Cumulative score -->
+      <div class="score-section">
+        <h3 class="section-label">SESSION SCORE</h3>
+        <div class="big-score" id="bigScore">—</div>
+        <div class="score-sub" id="scoreSub">avg per step</div>
+        <div class="score-history-wrap">
+          <canvas id="scoreChart" width="220" height="60"></canvas>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER: Patient queue -->
+    <section class="panel panel-queue">
+      <div class="queue-header">
+        <h2 class="panel-title">PATIENT QUEUE</h2>
+        <div class="queue-meta" id="queueMeta">No active episode</div>
+      </div>
+      <div class="patient-grid" id="patientGrid">
+        <div class="empty-state">
+          <div class="empty-icon">⚕</div>
+          <div>Start an episode to populate the queue</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Action panel + log -->
+    <aside class="panel panel-right">
+
+      <!-- Manual action panel (shown in manual mode) -->
+      <div id="actionPanel">
+        <h2 class="panel-title">ACTION</h2>
+        <div class="selected-patient-info" id="selectedPatientInfo">
+          <span class="select-hint">← Select a patient card</span>
+        </div>
+
+        <div class="action-buttons" id="actionButtons">
+          <button class="action-btn" data-action="observe_vitals">🔍 Observe Vitals</button>
+          <button class="action-btn" data-action="order_labs">🧪 Order Labs</button>
+          <button class="action-btn" data-action="order_imaging">🩻 Order Imaging</button>
+          <div class="esi-assign-row">
+            <span class="ctrl-label">Assign ESI</span>
+            <div class="esi-btns">
+              <button class="esi-btn esi-1" data-esi="1">1</button>
+              <button class="esi-btn esi-2" data-esi="2">2</button>
+              <button class="esi-btn esi-3" data-esi="3">3</button>
+              <button class="esi-btn esi-4" data-esi="4">4</button>
+              <button class="esi-btn esi-5" data-esi="5">5</button>
+            </div>
+          </div>
+          <button class="action-btn" data-action="allocate_bed">🛏 Allocate Bed</button>
+          <button class="action-btn action-btn--discharge" data-action="discharge">✓ Discharge</button>
+          <button class="action-btn action-btn--admit" data-action="admit">⬆ Admit</button>
+          <button class="action-btn action-btn--escalate" data-action="escalate">🚨 ESCALATE</button>
+        </div>
+
+        <div class="last-score-box" id="lastScoreBox" style="display:none">
+          <div class="ls-label">LAST ACTION SCORE</div>
+          <div class="ls-value" id="lastScoreVal">—</div>
+          <div class="ls-bar-wrap"><div class="ls-bar" id="lastScoreBar"></div></div>
+          <div class="ls-rationale" id="lastRationale"></div>
+        </div>
+      </div>
+
+      <!-- Episode log -->
+      <div class="log-section">
+        <div class="log-header">
+          <h2 class="panel-title">EPISODE LOG</h2>
+          <button class="btn-clear" id="clearLog">CLEAR</button>
+        </div>
+        <div class="log-scroll" id="episodeLog">
+          <div class="log-empty">No events yet</div>
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <!-- ── Diagnostics modal ──────────────────────────────────────────── -->
+  <div class="modal-overlay" id="diagModal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <span>SYSTEM DIAGNOSTICS</span>
+        <button class="modal-close" id="closeDiag">✕</button>
+      </div>
+      <pre class="modal-pre" id="diagContent">Loading…</pre>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

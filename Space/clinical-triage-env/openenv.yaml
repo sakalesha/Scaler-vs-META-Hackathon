@@ -1,0 +1,22 @@
+name: ClinicalTriageEnv
+version: 1.0.0
+description: |
+  A simulated emergency department triage environment where an AI agent acts as a triage reasoning engine.
+  The agent must gather clinical info, assign ESI levels, and manage limited resources (beds, labs).
+tags: [clinical, triage, healthcare, reasoning, openenv]
+
+tasks:
+  - id: triage-basics
+    difficulty: easy
+    description: "Triage 3 incoming patients with clear symptoms. Focus on observing vitals before assigning ESI."
+    max_steps: 20
+    
+  - id: standard-shift
+    difficulty: medium
+    description: "Manage a 6-hour ED shift with 8+ patients. Handle stochastic arrivals and limited bed capacity."
+    max_steps: 40
+    
+  - id: crisis-surge
+    difficulty: hard
+    description: "High-pressure surge. 15 patients arrive, many unstable. Patients deteriorate faster if not triaged."
+    max_steps: 50
