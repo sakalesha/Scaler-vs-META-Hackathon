@@ -48,10 +48,10 @@ def root():
 # ── OpenEnv Standard Endpoints ───────────────────────────────────────────────
 
 @app.post("/reset", response_model=ResetResponse)
-def reset(request: ResetRequest):
+def reset(task_id: str, seed: Optional[int] = None):
     global _state
     try:
-        _state = create_initial_state(request.task_id, seed=request.seed)
+        _state = create_initial_state(task_id, seed=seed)
         obs = build_observation(_state, "Episode reset. Welcome to the ED.")
         return ResetResponse(observation=obs)
     except Exception as e:
